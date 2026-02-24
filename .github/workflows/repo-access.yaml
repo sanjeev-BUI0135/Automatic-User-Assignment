@@ -1,56 +1,74 @@
-name: Auto Assign Bui User
+# name: Auto Assign Bui User
 
-on:
-  schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch:
+# on:
+#   schedule:
+#     - cron: "*/10 * * * *"
+#   workflow_dispatch:
 
-jobs:
-  manage-access:
-    runs-on: ubuntu-latest
+# jobs:
+#   manage-access:
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Install GitHub CLI and jq
-        run: |
-          sudo apt update
-          sudo apt install gh jq -y
+#     steps:
+#       - name: Install GitHub CLI and jq
+#         run: |
+#           sudo apt update
+#           sudo apt install gh jq -y
 
           
 
-      - name: Authenticate
-        run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
+#       - name: Authenticate
+#         run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
 
-      - name: Assign and Remove Access
+#       - name: Assign and Remove Access
+#         run: |
+#           ORG="sanjeev-BUI0135"
+#           USER="bui-job"
+#           NOW=$(date -u +%s)
+
+#           echo "Checking repositories..."
+
+#           gh repo list $ORG --limit 200 --json name,createdAt | jq -c '.[]' | while read repo; do
+#             NAME=$(echo $repo | jq -r '.name')
+#             CREATED=$(echo $repo | jq -r '.createdAt')
+#             CREATED_TS=$(date -d "$CREATED" +%s)
+
+#             MINUTES=$(( (NOW - CREATED_TS) / 60 ))
+#             HOURS=$(( (NOW - CREATED_TS) / 3600 ))
+
+#             echo "Repo: $NAME | Minutes: $MINUTES | Hours: $HOURS"
+
+#             # Add user if repo created within 10 minutes
+#             if [ $MINUTES -lt 10 ]; then
+#               echo "Adding $USER to $NAME"
+#               if gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write; then 
+#                 echo "Sucessfully added $USER"
+#               else 
+#                 echo "Failed to add $USER"
+#               fi
+#             fi
+
+#             # Remove user after 24 hours
+#             if [ $HOURS -ge 24 ]; then
+#               echo "Removing $USER from $NAME"
+#               gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
+#             fi
+#           done
+
+
+name: Test Cron Run
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # every 10 minutes UTC
+  workflow_dispatch:         # optional manual trigger for testing
+
+jobs:
+  test-cron:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Show UTC Timestamp
         run: |
-          ORG="sanjeev-BUI0135"
-          USER="bui-job"
-          NOW=$(date -u +%s)
-
-          echo "Checking repositories..."
-
-          gh repo list $ORG --limit 200 --json name,createdAt | jq -c '.[]' | while read repo; do
-            NAME=$(echo $repo | jq -r '.name')
-            CREATED=$(echo $repo | jq -r '.createdAt')
-            CREATED_TS=$(date -d "$CREATED" +%s)
-
-            MINUTES=$(( (NOW - CREATED_TS) / 60 ))
-            HOURS=$(( (NOW - CREATED_TS) / 3600 ))
-
-            echo "Repo: $NAME | Minutes: $MINUTES | Hours: $HOURS"
-
-            # Add user if repo created within 10 minutes
-            if [ $MINUTES -lt 10 ]; then
-              echo "Adding $USER to $NAME"
-              if gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write; then 
-                echo "Sucessfully added $USER"
-              else 
-                echo "Failed to add $USER"
-              fi
-            fi
-
-            # Remove user after 24 hours
-            if [ $HOURS -ge 24 ]; then
-              echo "Removing $USER from $NAME"
-              gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
-            fi
-          done
+          echo "Workflow triggered at:"
+          date -u
