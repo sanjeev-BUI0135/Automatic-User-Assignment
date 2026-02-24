@@ -1,0 +1,54 @@
+name: Repo Access Auto Control
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check-and-manage:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install GitHub CLI and jq
+        run: |
+          sudo apt update
+          sudo apt install gh jq -y
+
+      - name: Authenticate GitHub CLI
+        run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
+
+      - name: Manage Repo Access
+        run: |
+          ORG="sanjeev-BUI0135"
+          NOW=$(date -u +%s)
+
+          gh repo list $ORG --limit 200 --json name,createdAt | jq -c '.[]' | while read repo; do
+            NAME=$(echo $repo | jq -r '.name')
+            CREATED=$(echo $repo | jq -r '.createdAt')
+            CREATED_TS=$(date -d "$CREATED" +%s)
+
+            MINUTES=$(( (NOW - CREATED_TS) / 60 ))
+            HOURS=$(( (NOW - CREATED_TS) / 3600 ))
+
+            # Assign user based on repo name
+            if [[ "$NAME" == interview-bui-job-* ]]; then
+              USER="bui-job"
+            elif [[ "$NAME" == interview-interview1-* ]]; then
+              USER="interview1"
+            else
+              continue
+            fi
+
+            # Add access if repo created within last 10 minutes
+            if [ $MINUTES -lt 10 ]; then
+              echo "Adding $USER to $NAME"
+              gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write
+            fi
+
+            # Remove access after 24 hours
+            if [ $HOURS -ge 24 ]; then
+              echo "Removing $USER from $NAME"
+              gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
+            fi
+          done
