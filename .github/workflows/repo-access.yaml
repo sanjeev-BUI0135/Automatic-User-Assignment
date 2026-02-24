@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-and-manage:
+  manage:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,15 +15,15 @@ jobs:
           sudo apt update
           sudo apt install gh jq -y
 
-      - name: Authenticate GitHub CLI
+      - name: Authenticate
         run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
 
-      - name: Manage Repo Access
+      - name: Manage Access
         run: |
           ORG="sanjeev-BUI0135"
           NOW=$(date -u +%s)
 
-          gh repo list $ORG --limit 200 --json name,createdAt | jq -c '.[]' | while read repo; do
+          gh repo list $ORG --limit 200 --json name,createdAt,repositoryTopics | jq -c '.[]' | while read repo; do
             NAME=$(echo $repo | jq -r '.name')
             CREATED=$(echo $repo | jq -r '.createdAt')
             CREATED_TS=$(date -d "$CREATED" +%s)
@@ -31,22 +31,26 @@ jobs:
             MINUTES=$(( (NOW - CREATED_TS) / 60 ))
             HOURS=$(( (NOW - CREATED_TS) / 3600 ))
 
-            # Assign user based on repo name
-            if [[ "$NAME" == interview-bui-job-* ]]; then
-              USER="bui-job"
-            elif [[ "$NAME" == interview-interview1-* ]]; then
-              USER="interview1"
-            else
+            USER=""
+
+            # Read repository topics
+            for topic in $(echo $repo | jq -r '.repositoryTopics[].name'); do
+              if [ "$topic" = "assign-bui-job" ]; then
+                USER="bui-job"
+              elif [ "$topic" = "assign-interview1" ]; then
+                USER="interview1"
+              fi
+            done
+
+            if [ -z "$USER" ]; then
               continue
             fi
 
-            # Add access if repo created within last 10 minutes
             if [ $MINUTES -lt 10 ]; then
               echo "Adding $USER to $NAME"
               gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write
             fi
 
-            # Remove access after 24 hours
             if [ $HOURS -ge 24 ]; then
               echo "Removing $USER from $NAME"
               gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
