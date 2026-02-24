@@ -2,11 +2,11 @@ name: Repo Access Auto Control
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch:
+    - cron: "*/10 * * * *"   # Runs every 10 minutes
+  workflow_dispatch:         # Allows manual run
 
 jobs:
-  manage:
+  manage-access:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,10 +15,10 @@ jobs:
           sudo apt update
           sudo apt install gh jq -y
 
-      - name: Authenticate
+      - name: Authenticate with GitHub
         run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
 
-      - name: Manage Access
+      - name: Manage Repository Access
         run: |
           ORG="sanjeev-BUI0135"
           NOW=$(date -u +%s)
@@ -33,8 +33,8 @@ jobs:
 
             USER=""
 
-            # Read repository topics
-            for topic in $(echo $repo | jq -r '.repositoryTopics[].name'); do
+            # Read repository topics safely
+            for topic in $(echo $repo | jq -r '.repositoryTopics[]?.name // empty'); do
               if [ "$topic" = "assign-bui-job" ]; then
                 USER="bui-job"
               elif [ "$topic" = "assign-interview1" ]; then
@@ -42,15 +42,18 @@ jobs:
               fi
             done
 
+            # Skip if no assignment topic
             if [ -z "$USER" ]; then
               continue
             fi
 
+            # Add access within first 10 minutes
             if [ $MINUTES -lt 10 ]; then
               echo "Adding $USER to $NAME"
               gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write
             fi
 
+            # Remove access after 24 hours
             if [ $HOURS -ge 24 ]; then
               echo "Removing $USER from $NAME"
               gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
