@@ -39,7 +39,11 @@ jobs:
             # Add user if repo created within 10 minutes
             if [ $MINUTES -lt 10 ]; then
               echo "Adding $USER to $NAME"
-              gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write || true
+              if gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write; then 
+                echo "Sucessfully added $USER"
+              else 
+                echo "Failed to add $USER"
+              fi
             fi
 
             # Remove user after 24 hours
