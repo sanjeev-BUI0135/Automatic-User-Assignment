@@ -1,9 +1,9 @@
-name: Repo Access Auto Control
+name: Auto Assign Bui User
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # Runs every 10 minutes
-  workflow_dispatch:         # Allows manual run
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
 
 jobs:
   manage-access:
@@ -15,15 +15,18 @@ jobs:
           sudo apt update
           sudo apt install gh jq -y
 
-      - name: Authenticate with GitHub
+      - name: Authenticate
         run: echo "${{ secrets.ORG_TOKEN }}" | gh auth login --with-token
 
-      - name: Manage Repository Access
+      - name: Assign and Remove Access
         run: |
           ORG="sanjeev-BUI0135"
+          USER="bui-job"
           NOW=$(date -u +%s)
 
-          gh repo list $ORG --limit 200 --json name,createdAt,repositoryTopics | jq -c '.[]' | while read repo; do
+          echo "Checking repositories..."
+
+          gh repo list $ORG --limit 200 --json name,createdAt | jq -c '.[]' | while read repo; do
             NAME=$(echo $repo | jq -r '.name')
             CREATED=$(echo $repo | jq -r '.createdAt')
             CREATED_TS=$(date -d "$CREATED" +%s)
@@ -31,29 +34,15 @@ jobs:
             MINUTES=$(( (NOW - CREATED_TS) / 60 ))
             HOURS=$(( (NOW - CREATED_TS) / 3600 ))
 
-            USER=""
+            echo "Repo: $NAME | Minutes: $MINUTES | Hours: $HOURS"
 
-            # Read repository topics safely
-            for topic in $(echo $repo | jq -r '.repositoryTopics[]?.name // empty'); do
-              if [ "$topic" = "assign-bui-job" ]; then
-                USER="bui-job"
-              elif [ "$topic" = "assign-interview1" ]; then
-                USER="interview1"
-              fi
-            done
-
-            # Skip if no assignment topic
-            if [ -z "$USER" ]; then
-              continue
-            fi
-
-            # Add access within first 10 minutes
+            # Add user if repo created within 10 minutes
             if [ $MINUTES -lt 10 ]; then
               echo "Adding $USER to $NAME"
-              gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write
+              gh api -X PUT repos/$ORG/$NAME/collaborators/$USER -f permission=write || true
             fi
 
-            # Remove access after 24 hours
+            # Remove user after 24 hours
             if [ $HOURS -ge 24 ]; then
               echo "Removing $USER from $NAME"
               gh api -X DELETE repos/$ORG/$NAME/collaborators/$USER || true
