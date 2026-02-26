@@ -56,17 +56,17 @@
 #           done
 
 
-name: Test Cron Pipeline
+# name: Test Cron Pipeline
 
-on:
-  schedule:
-    - cron: '*/5 * * * *'  # runs every 5 minutes
-  workflow_dispatch:       # optional manual trigger
+# on:
+#   schedule:
+#     - cron: '*/5 * * * *'  # runs every 5 minutes
+#   workflow_dispatch:       # optional manual trigger
 
-jobs:
-  test-cron:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Print timestamp
-        run: |
-          echo "Cron pipeline ran at $(date)"
+# jobs:
+#   test-cron:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Print timestamp
+#         run: |
+#           echo "Cron pipeline ran at $(date)"
